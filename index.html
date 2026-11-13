@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>HTMLランナー</title>
+<style>
+:root{--bg:#f6f7fb;--fg:#1c1e26;--card:#fff;--ac:#4f46e5;--bd:#e2e4ee;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root{--bg:#14151b;--fg:#eceef5;--card:#1e2029;--ac:#818cf8;--bd:#2d3040}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,"Hiragino Sans",sans-serif}
+main{max-width:720px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:8px 0 16px}
+.card{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;margin-bottom:10px}
+.card .t{flex:1;font-weight:600;word-break:break-all}
+button{font:inherit;border:0;border-radius:8px;padding:8px 14px;background:var(--ac);color:#fff}
+button.s{background:transparent;color:var(--fg);border:1px solid var(--bd)}
+.muted{opacity:.6;font-size:13px}
+textarea,input[type=text]{width:100%;background:var(--card);color:var(--fg);border:1px solid var(--bd);border-radius:8px;padding:8px;font:inherit}
+textarea{height:120px;font-family:monospace;font-size:13px}
+details{margin-top:18px}summary{font-weight:600;margin-bottom:8px}
+.row{display:flex;gap:8px;margin:8px 0;flex-wrap:wrap}
+#run{display:none;position:fixed;inset:0;background:var(--bg);flex-direction:column;z-index:5}
+#bar{display:flex;gap:8px;align-items:center;padding:8px 12px;padding-top:calc(8px + env(safe-area-inset-top,0px));border-bottom:1px solid var(--bd)}
+#bar b{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#fr{flex:1;width:100%;border:0;background:#fff;padding-bottom:env(safe-area-inset-bottom,0px)}
+</style>
+</head>
+<body>
+<main>
+<h1>▶ HTMLランナー</h1>
+<div id="list"><p class="muted">読み込み中…</p></div>
+<details open>
+<summary>HTMLを追加</summary>
+<input type="text" id="name" placeholder="名前(例: minecraft-like.html)">
+<div class="row"><input type="file" id="file" accept=".html,.htm,text/html"></div>
+<textarea id="code" placeholder="またはここにHTMLを貼り付け"></textarea>
+<div class="row"><button id="add">追加</button><button class="s" id="try">すぐ実行</button></div>
+<p class="muted">追加したHTMLはこの端末のブラウザに保存されます。</p>
+</details>
+</main>
+<div id="run">
+<div id="bar"><button class="s" id="back">← 戻る</button><b id="rt"></b><button class="s" id="rl">再読込</button></div>
+<iframe id="fr" sandbox="allow-scripts allow-same-origin allow-pointer-lock allow-forms allow-modals allow-popups" allow="fullscreen; gamepad"></iframe>
+</div>
+<script>
+// HTMLは games/ フォルダに置くだけで自動で一覧に出ます。
+// 自動取得できない時は games/games.json(例: ["a.html","b.html"])を使います。
+var DIR="games",$=function(i){return document.getElementById(i)},cur={u:"",h:null};
+function esc(s){return s.replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+var KEY="html-runner-items",saved=[],files=[],all=[];
+try{saved=JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){saved=[]}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(saved))}catch(e){alert("保存できませんでした(今回だけ有効)")}}
+function show(names){
+  if(names)files=names.filter(function(n){return /\.html?$/i.test(n)}).sort();
+  all=files.map(function(n){return{n:n}}).concat(saved.map(function(o,i){return{n:o.name,h:o.html,i:i}}));
+  $("list").innerHTML=all.map(function(e,j){return '<div class="card"><span class="t">'+esc(e.n)+'</span><button data-r="'+j+'">実行</button>'+(e.h!==undefined?'<button class="s" data-d="'+e.i+'">削除</button>':'')+'</div>'}).join("")||'<p class="muted">games フォルダにHTMLを置くか、下から追加してください</p>';
+}
+$("list").onclick=function(ev){var t=ev.target,r=t.getAttribute("data-r"),d=t.getAttribute("data-d");
+  if(r!==null){var e=all[+r];e.h!==undefined?openGame(e.n,null,e.h):openGame(e.n,DIR+"/"+encodeURIComponent(e.n),null)}
+  if(d!==null){saved.splice(+d,1);persist();show()}};
+function load(){var f=$("fr");if(cur.h!==null){f.srcdoc=cur.h}else{f.removeAttribute("srcdoc");f.src=cur.u}}
+function blank(){var f=$("fr");f.removeAttribute("srcdoc");f.src="about:blank"}
+function openGame(n,u,h){cur={u:u,h:h};$("rt").textContent=n;load();$("run").style.display="flex"}
+$("file").onchange=function(){var f=this.files[0];if(!f)return;var r=new FileReader();r.onload=function(){$("code").value=r.result;if(!$("name").value)$("name").value=f.name};r.readAsText(f)};
+$("add").onclick=function(){var h=$("code").value.trim();if(!h)return alert("HTMLを入れてください");saved.push({name:$("name").value.trim()||"無題.html",html:h});persist();$("code").value="";$("name").value="";$("file").value="";show()};
+$("try").onclick=function(){var h=$("code").value.trim();if(h)openGame($("name").value||"プレビュー",null,h)};
+function fromApi(){
+  var host=location.hostname,path=location.pathname.split("/")[1];
+  if(!/\.github\.io$/.test(host)||!path)return Promise.reject();
+  return fetch("https://api.github.com/repos/"+host.split(".")[0]+"/"+path+"/contents/"+DIR)
+    .then(function(r){if(!r.ok)throw 0;return r.json()})
+    .then(function(a){return a.map(function(f){return f.name})});
+}
+function fromJson(){return fetch(DIR+"/games.json",{cache:"no-store"}).then(function(r){if(!r.ok)throw 0;return r.json()})}
+fromApi().catch(fromJson).then(show).catch(function(){show([])});
+$("back").onclick=function(){$("run").style.display="none";blank()};
+$("rl").onclick=function(){blank();setTimeout(load,30)};
+</script>
+</body>
+</html>
