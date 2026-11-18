@@ -174,7 +174,7 @@ const HELP=[
 ['メガ','ボスが使う強力な攻撃ブロック。']]],
 ['🧹 その他',[
 ['🧹消す','置いたブロックを消す。'],
-['📋 ボディ','ボディの形(ひな形)を選ぶ。選ぶと今の組み立ては置き換わる。']]]];
+['📋 ボディ','ボディの形を選ぶ。選ぶと今の組み立ては置き換わる。']]]];
 $('hl').innerHTML='<table style="width:100%;border-collapse:collapse;font-size:13px;line-height:1.45">'+HELP.map(([t,a])=>'<tr><th colspan="2" style="text-align:left;padding:8px 6px;background:#33415c;color:#e8a020;font-size:14px">'+t+'</th></tr><tr style="color:#9fb0c8;font-size:12px"><td style="padding:3px 6px;border-bottom:1px solid #5a6a85">ブロック</td><td style="padding:3px 6px;border-bottom:1px solid #5a6a85">説明</td></tr>'+a.map(([n,d],i)=>'<tr style="background:'+(i%2?'#ffffff0d':'transparent')+'"><td style="padding:6px;white-space:nowrap;vertical-align:top;font-weight:700;border-bottom:1px solid #33415c">'+n+'</td><td style="padding:6px;vertical-align:top;border-bottom:1px solid #33415c">'+d+'</td></tr>').join('')).join('')+'</table>';
 $('hb').onclick=()=>$('hp').hidden=false;$('hx').onclick=()=>$('hp').hidden=true;
 
