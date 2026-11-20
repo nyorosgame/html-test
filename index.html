@@ -52,7 +52,7 @@ details{margin-top:18px}summary{font-weight:600;margin-bottom:8px}
 // 自動取得できない時は games/games.json(例: ["a.html","b.html"])を使います。
 var DIR="games",$=function(i){return document.getElementById(i)},cur={u:"",h:null};
 function esc(s){return s.replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
-var BASE="ゲーム",KEY="html-runner-items",FK="html-runner-folders",saved=[],folders=[],files=[],all=[];
+var BASE="Example",KEY="html-runner-items",FK="html-runner-folders",saved=[],folders=[],files=[],all=[];
 try{saved=JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){saved=[]}
 try{folders=JSON.parse(localStorage.getItem(FK)||"[]")}catch(e){folders=[]}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(saved));localStorage.setItem(FK,JSON.stringify(folders))}catch(e){alert("保存できませんでした(今回だけ有効)")}}
