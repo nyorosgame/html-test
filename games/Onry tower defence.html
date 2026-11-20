@@ -1,0 +1,1643 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>砦の見張り番 - タワーディフェンス</title>
+<style>
+  :root{
+    --bg:#e9f0e3;
+    --panel-bg:#fffdf7;
+    --panel-border:#d8cfb8;
+    --text:#2b2b22;
+    --text-dim:#6b6a5c;
+    --accent:#3f7d4c;
+    --accent-dark:#2c5b37;
+    --danger:#b5442e;
+    --grass1:#8fc07d;
+    --grass2:#83b571;
+    --path-fill:#cdb488;
+    --path-edge:#a98f63;
+    box-sizing:border-box;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#141a12;
+      --panel-bg:#1d251a;
+      --panel-border:#3a4433;
+      --text:#eef0e6;
+      --text-dim:#a5ab98;
+      --accent:#5fae70;
+      --accent-dark:#3f7d4c;
+      --danger:#e07156;
+      --grass1:#2f4a29;
+      --grass2:#2a4225;
+      --path-fill:#5c4d34;
+      --path-edge:#40361f;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#141a12; --panel-bg:#1d251a; --panel-border:#3a4433; --text:#eef0e6;
+    --text-dim:#a5ab98; --accent:#5fae70; --accent-dark:#3f7d4c; --danger:#e07156;
+    --grass1:#2f4a29; --grass2:#2a4225; --path-fill:#5c4d34; --path-edge:#40361f;
+  }
+  *{ box-sizing:border-box; }
+  html,body{
+    margin:0; padding:0; background:var(--bg); color:var(--text);
+    font-family:'Hiragino Sans','Yu Gothic',system-ui,-apple-system,sans-serif;
+    -webkit-tap-highlight-color:transparent;
+  }
+  body{ padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px); }
+  #app{ max-width:820px; margin:0 auto; padding:10px 10px 20px; display:flex; flex-direction:column; gap:10px; }
+  h1{ font-size:18px; font-weight:700; margin:2px 2px 0; letter-spacing:0.02em; }
+  h1 span{ color:var(--accent); }
+
+  #hud{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    background:var(--panel-bg); border:1px solid var(--panel-border); border-radius:12px;
+    padding:8px 12px; position:sticky; top:env(safe-area-inset-top,0px); z-index:5;
+  }
+  .stat{ display:flex; align-items:center; gap:5px; font-size:14px; font-weight:600; white-space:nowrap; }
+  .stat .ico{ font-size:16px; }
+  #hudControls{ display:flex; gap:6px; }
+  button{
+    font-family:inherit; border:none; cursor:pointer; border-radius:9px;
+    background:var(--accent); color:#fff; font-weight:600; padding:8px 12px; font-size:13px;
+    transition:transform .08s ease, opacity .15s ease;
+  }
+  button:active{ transform:scale(0.95); }
+  button:disabled{ opacity:0.4; cursor:not-allowed; }
+  button.ghost{ background:transparent; border:1px solid var(--panel-border); color:var(--text); }
+  button.danger{ background:var(--danger); }
+
+  #boardWrap{
+    position:relative; border-radius:14px; overflow:hidden; border:1px solid var(--panel-border);
+    box-shadow:0 4px 18px rgba(0,0,0,0.12); line-height:0;
+  }
+  canvas{ width:100%; height:auto; aspect-ratio:800/560; display:block; touch-action:none; background:var(--grass1); }
+
+  #toast{
+    position:absolute; top:10px; left:50%; transform:translate(-50%,-140%);
+    background:rgba(20,20,20,0.85); color:#fff; padding:7px 14px; border-radius:20px;
+    font-size:13px; font-weight:600; opacity:0; transition:transform .25s ease, opacity .25s ease;
+    pointer-events:none; white-space:nowrap; z-index:6;
+  }
+  #toast.show{ transform:translate(-50%,0); opacity:1; }
+
+  #overlay{
+    position:absolute; inset:0; background:rgba(10,14,8,0.72); display:none;
+    align-items:center; justify-content:center; text-align:center; color:#fff; padding:20px; z-index:6;
+  }
+  #overlay.show{ display:flex; }
+  #overlay .box{ max-width:280px; }
+  #overlay h2{ margin:0 0 6px; font-size:24px; }
+  #overlay p{ margin:0 0 16px; color:#d8dccf; font-size:14px; }
+
+  #collectionBar{
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--panel-bg); border:1px solid var(--panel-border); border-radius:12px;
+    padding:9px 12px; font-size:13px; font-weight:600; cursor:pointer;
+  }
+  #collectionBar .sub{ font-size:11px; color:var(--text-dim); font-weight:400; }
+
+  #ampBar, #towerBar, #modeBar{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    background:var(--panel-bg); border:1px solid var(--panel-border); border-radius:12px;
+    padding:9px 12px; font-size:13px; font-weight:600;
+  }
+  #ampBar .sub{ font-size:11px; color:var(--text-dim); font-weight:400; }
+  #btnBuyAmp, #btnBuyTower, #btnMode{ flex-shrink:0; }
+
+  #hint{ font-size:12px; color:var(--text-dim); text-align:center; margin:-2px 2px 0; }
+
+  #infoPanel{
+    display:none; background:var(--panel-bg); border:1px solid var(--panel-border);
+    border-radius:12px; padding:10px 12px; font-size:13px;
+  }
+  #infoPanel.show{ display:block; }
+  #infoPanel .row1{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  #slotRow{ display:flex; flex-wrap:wrap; gap:8px; }
+  .slotBtn{
+    flex:1; min-width:80px; display:flex; flex-direction:column; align-items:center; gap:4px;
+    background:transparent; border:2px solid var(--panel-border); border-radius:10px;
+    padding:8px 4px; color:var(--text);
+  }
+  .slotBtn .swatch{ width:22px; height:22px; border-radius:50%; }
+  .slotBtn .sname{ font-size:11px; font-weight:700; }
+  .slotBtn .slabel{ font-size:10px; color:var(--text-dim); }
+
+  .buffChip{
+    flex:1 1 45%; min-width:130px; display:flex; flex-direction:column; align-items:stretch; gap:3px;
+    background:transparent; border:2px solid var(--panel-border); border-radius:10px;
+    padding:8px 10px; color:var(--text); text-align:left;
+  }
+  .buffChip.active{ border-color:var(--accent); background:rgba(63,125,76,0.12); }
+  .buffChip .bname{ font-size:12px; font-weight:700; display:flex; align-items:center; gap:6px; }
+  .buffChip .bname .swatch{ width:14px; height:14px; border-radius:50%; display:inline-block; }
+  .buffChip .bdesc{ font-size:11px; color:var(--text-dim); }
+  .buffChip .chipActions{ display:flex; gap:6px; margin-top:6px; width:100%; }
+  .chipBtn{ flex:1; padding:6px 6px; font-size:11px; }
+
+  .modalOverlay{
+    position:fixed; inset:0; background:rgba(0,0,0,0.55); display:none;
+    align-items:flex-end; justify-content:center; z-index:30;
+  }
+  .modalOverlay.show{ display:flex; }
+  .modalBox{
+    background:var(--panel-bg); width:100%; max-width:560px; max-height:82vh;
+    border-radius:16px 16px 0 0; overflow:hidden; display:flex; flex-direction:column;
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  .modalHeader{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:12px 14px; border-bottom:1px solid var(--panel-border); font-weight:700; font-size:14px;
+  }
+  .modalHeader button{ padding:4px 10px; }
+  .modalList{ overflow-y:auto; padding:8px 10px 16px; display:flex; flex-direction:column; gap:8px; }
+  .ammoCard{
+    display:flex; align-items:center; gap:10px; border:1px solid var(--panel-border);
+    border-radius:10px; padding:8px 10px;
+  }
+  .ammoCard.owned{ border-color:var(--accent); }
+  .ammoCard .swatch{ width:28px; height:28px; border-radius:50%; flex-shrink:0; }
+  .ammoCard .info{ flex:1; min-width:0; }
+  .ammoCard .aname{ font-weight:700; font-size:13px; }
+  .ammoCard .astat{ font-size:11px; color:var(--text-dim); }
+  .ammoCard .adesc{ font-size:11px; color:var(--text-dim); margin-top:2px; }
+  .ammoCard button{ white-space:nowrap; font-size:12px; padding:7px 10px; flex-shrink:0; }
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>砦の見張り番 <span>Tower Defense</span></h1>
+
+  <div id="hud">
+    <div class="stat"><span class="ico">💰</span><span id="statMoney">150</span></div>
+    <div class="stat"><span class="ico">💎</span><span id="statDiamonds">0</span></div>
+    <div class="stat"><span class="ico">❤️</span><span id="statLives">20</span></div>
+    <div class="stat"><span class="ico">🌊</span><span id="statWave">0</span></div>
+    <div id="hudControls">
+      <button id="btnStartWave">ウェーブ開始</button>
+      <button id="btnSpeed" class="ghost">x1</button>
+    </div>
+  </div>
+
+  <div id="boardWrap">
+    <canvas id="game" width="800" height="560"></canvas>
+    <div id="toast"></div>
+    <div id="overlay">
+      <div class="box">
+        <h2>ゲームオーバー</h2>
+        <p id="overlayText">砦は陥落した。</p>
+        <button id="btnRestart">もう一度挑戦</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="collectionBar">
+    <span>🧪 弾薬コレクション <span id="collectionCount">1/20</span></span>
+    <span class="sub">タップして解放 ＞</span>
+  </div>
+
+  <div id="modeBar">
+    <span>🎮 <span id="modeLabel">通常モード</span></span>
+    <button id="btnMode" class="ghost">インフレモードにする</button>
+  </div>
+
+  <div id="towerBar" style="display:none">
+    <span>🏗 購入タワー <span id="towerCount">0</span>基</span>
+    <button id="btnBuyTower">購入</button>
+  </div>
+
+  <div id="ampBar">
+    <span>🔧 強化タワー <span id="ampCount">0</span>基設置中</span>
+    <button id="btnBuyAmp">💎15で追加</button>
+  </div>
+
+  <div id="hint">攻撃タワーをタップして弾薬をセット、👑指揮タワーでバフを選択。5ウェーブごとに現れる🤝ペアタワーは攻撃タワーの隣に置くと攻撃力アップ、10秒に1回好きな場所へ移動できます。🔧強化タワーは弾薬を装填して戦う専用タワーで、自身の弾ダメージと効果を常に×1.5で発揮します。⚔️のタワーは戦場の敵が多いほどダメージが指数的に上昇し、10秒に1回好きな場所へ移動できます。💀インフレモード：敵が指数的に強くなり、5Waveごとのボスがマスを永久封鎖。ゴールドでタワー購入・弾の個別強化ができます。弾スロットにはコア(攻撃・速度・射程を2倍、タワーごとに💎20で入手)も装填でき、3つ全部コアにするとウルトラ弾を発射します。</div>
+
+  <div id="infoPanel">
+    <div class="row1">
+      <strong id="infoName">タワー</strong>
+      <button class="ghost" id="btnCloseInfo" style="padding:4px 10px;">閉じる</button>
+    </div>
+    <div id="slotRow"></div>
+  </div>
+</div>
+
+<div class="modalOverlay" id="ammoModal">
+  <div class="modalBox">
+    <div class="modalHeader">
+      <span id="modalTitle">弾薬を選択</span>
+      <button class="ghost" id="modalClose">✕</button>
+    </div>
+    <div class="modalList" id="modalList"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- canvas & theme colors ----------
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const CELL = 40, COLS = 20, ROWS = 14;
+  const W = canvas.width, H = canvas.height;
+
+  function cssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  let COLORS = {};
+  function refreshColors(){
+    COLORS = {
+      grass1: cssVar('--grass1') || '#8fc07d',
+      grass2: cssVar('--grass2') || '#83b571',
+      pathFill: cssVar('--path-fill') || '#cdb488',
+      pathEdge: cssVar('--path-edge') || '#a98f63'
+    };
+  }
+  refreshColors();
+  if (window.matchMedia) window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', refreshColors);
+
+  // ---------- path ----------
+  const PATH_CELLS = [[-1,2],[3,2],[3,6],[7,6],[7,2],[11,2],[11,9],[15,9],[15,4],[19,4],[19,9],[21,9]];
+  const PATH = PATH_CELLS.map(([c,r]) => ({ x: c*CELL + CELL/2, y: r*CELL + CELL/2 }));
+  const segLens = []; let TOTAL_LEN = 0;
+  for (let i=0;i<PATH.length-1;i++){
+    const d = Math.hypot(PATH[i+1].x-PATH[i].x, PATH[i+1].y-PATH[i].y);
+    segLens.push(d); TOTAL_LEN += d;
+  }
+  const cumLens = [0];
+  for (let i=0;i<segLens.length;i++) cumLens.push(cumLens[i]+segLens[i]);
+  function pointAtDistance(d){
+    if (d <= 0) return { x: PATH[0].x, y: PATH[0].y };
+    if (d >= TOTAL_LEN) return { x: PATH[PATH.length-1].x, y: PATH[PATH.length-1].y };
+    for (let i=0;i<segLens.length;i++){
+      if (d <= cumLens[i+1]){
+        const t = (d - cumLens[i]) / segLens[i];
+        return { x: PATH[i].x + (PATH[i+1].x-PATH[i].x)*t, y: PATH[i].y + (PATH[i+1].y-PATH[i].y)*t };
+      }
+    }
+    return { x: PATH[PATH.length-1].x, y: PATH[PATH.length-1].y };
+  }
+
+  function distToSegment(px,py, ax,ay, bx,by){
+    const dx=bx-ax, dy=by-ay;
+    const lenSq = dx*dx+dy*dy;
+    let t = lenSq === 0 ? 0 : ((px-ax)*dx + (py-ay)*dy)/lenSq;
+    t = Math.max(0, Math.min(1, t));
+    const cx = ax + dx*t, cy = ay + dy*t;
+    return Math.hypot(px-cx, py-cy);
+  }
+  function isNearPath(x,y,buffer){
+    for (let i=0;i<PATH.length-1;i++){
+      if (distToSegment(x,y, PATH[i].x,PATH[i].y, PATH[i+1].x,PATH[i+1].y) < buffer) return true;
+    }
+    return false;
+  }
+  function snapToGrid(x,y){
+    const c = Math.max(0, Math.min(COLS-1, Math.round((x-20)/40)));
+    const r = Math.max(0, Math.min(ROWS-1, Math.round((y-20)/40)));
+    return { x: c*40+20, y: r*40+20 };
+  }
+
+  // ---------- pair tower (moveable, buffs adjacent attack towers) ----------
+  const PAIR_ADJACENT_DIST = 70;
+  const PAIR_BUFF_MULT = 1.6;
+  const PAIR_MOVE_COOLDOWN = 10;
+  const PAIR_MIN_SPACING = 35;
+  let pairTowers = [];
+  let pairIdSeq = 1;
+  let movingPairId = null;
+
+  function isValidSpot(x, y, excludePairId, excludeTower){
+    if (x < 16 || x > W-16 || y < 16 || y > H-16) return false;
+    if (isNearPath(x, y, 34)) return false;
+    if (blockedCells.has(cellKeyOf(x, y))) return false;
+    for (const t of towers){
+      if (t === excludeTower) continue;
+      if (Math.hypot(t.x-x, t.y-y) < PAIR_MIN_SPACING) return false;
+    }
+    if (Math.hypot(buffTower.x-x, buffTower.y-y) < PAIR_MIN_SPACING) return false;
+    for (const p of pairTowers){
+      if (p.id === excludePairId) continue;
+      if (Math.hypot(p.x-x, p.y-y) < PAIR_MIN_SPACING) return false;
+    }
+    for (const a of ampTowers){
+      if (Math.hypot(a.x-x, a.y-y) < PAIR_MIN_SPACING) return false;
+    }
+    return true;
+  }
+
+  function trySpawnPairTower(){
+    const candidates = [];
+    for (let c=0;c<COLS;c++){
+      for (let r=0;r<ROWS;r++){
+        const x = c*40+20, y = r*40+20;
+        if (isValidSpot(x, y, null)) candidates.push({x,y});
+      }
+    }
+    if (!candidates.length){
+      showToast('フィールドに空きがなく、ペアタワーは出現しませんでした');
+      return false;
+    }
+    const pick = candidates[Math.floor(Math.random()*candidates.length)];
+    pairTowers.push({ id: pairIdSeq++, x: pick.x, y: pick.y, cooldown: 0 });
+    showToast('ペアタワーが出現しました！');
+    return true;
+  }
+
+  function pairBuffMultiplier(t){
+    for (const p of pairTowers){
+      if (Math.hypot(p.x-t.x, p.y-t.y) <= PAIR_ADJACENT_DIST) return PAIR_BUFF_MULT;
+    }
+    return 1;
+  }
+
+  // ---------- amp tower (bought with diamonds; a real attack tower that always deals 1.5x damage & effect strength) ----------
+  const AMP_MULT = 1.5;
+  const AMP_COST_DIAMONDS = 15;
+  let ampTowers = [];
+  let ampIdSeq = 1;
+  let placingAmp = false;
+
+  function hasFreeGridSpot(){
+    for (let c=0;c<COLS;c++){
+      for (let r=0;r<ROWS;r++){
+        if (isValidSpot(c*40+20, r*40+20, null)) return true;
+      }
+    }
+    return false;
+  }
+
+  // ---------- fixed attack towers ----------
+  const TOWER_RANGE = 150;
+  const TOWER_POSITIONS = [ {x:220,y:180}, {x:540,y:260}, {x:700,y:260}, {x:140,y:340}, {x:380,y:180}, {x:620,y:460,swarm:true} ];
+  const SWARM_BASE = 1.06;
+  const SWARM_CAP = 8;
+  function swarmMultiplier(){ return Math.min(SWARM_CAP, Math.pow(SWARM_BASE, enemies.length)); }
+  let towers = [];
+  function initTowers(){
+    towers = TOWER_POSITIONS.map((p,i) => ({
+      id: i+1, x: p.x, y: p.y,
+      ammoSlots: ['normal','normal','normal'],
+      slotIndex: 0, cooldown: 0,
+      isSwarm: !!p.swarm, moveCooldown: 0, ownedCores: []
+    }));
+  }
+
+  // ---------- fixed buff tower (командный tower) ----------
+  const BUFF_LIST = [
+    { id:'damage', name:'攻撃力ブースト', color:'#e05a4a', infinite:true, base:1.3,  step:0.2 },
+    { id:'rate',   name:'速射ブースト',   color:'#4da6ff', infinite:false, levels:[ {mult:0.75,cost:0}, {mult:0.65,cost:90}, {mult:0.55,cost:180} ] },
+    { id:'range',  name:'射程ブースト',   color:'#5fbf5f', infinite:true, base:1.25, step:0.15 },
+    { id:'gold',   name:'黄金ブースト',   color:'#e0c23c', infinite:true, base:1.4,  step:0.3 },
+    { id:'crit',   name:'会心ブースト',   color:'#a85cff', infinite:false, levels:[ {chance:0.2,cost:0}, {chance:0.3,cost:90}, {chance:0.4,cost:180} ] }
+  ];
+  const BUFF_BY_ID = {};
+  BUFF_LIST.forEach(b => BUFF_BY_ID[b.id] = b);
+  const BUFF_TOWER_POS = { x:380, y:300 };
+  let buffTower = { x: BUFF_TOWER_POS.x, y: BUFF_TOWER_POS.y, buffs: [] };
+  let buffLevels = { damage:0, rate:0, range:0, gold:0, crit:0 };
+
+  function hasBuff(id){ return buffTower.buffs.includes(id); }
+  function dmgMultiplier(){ if(!hasBuff('damage')) return 1; const b=BUFF_BY_ID.damage; return b.base + b.step*buffLevels.damage; }
+  function rateMultiplier(){ return hasBuff('rate') ? BUFF_BY_ID.rate.levels[buffLevels.rate].mult : 1; }
+  function rangeMultiplier(){ if(!hasBuff('range')) return 1; const b=BUFF_BY_ID.range; return b.base + b.step*buffLevels.range; }
+  function goldMultiplier(){ if(!hasBuff('gold')) return 1; const b=BUFF_BY_ID.gold; return b.base + b.step*buffLevels.gold; }
+  function rollCritMultiplier(){
+    if (!hasBuff('crit')) return 1;
+    const lvl = BUFF_BY_ID.crit.levels[buffLevels.crit];
+    return Math.random() < lvl.chance ? 2 : 1;
+  }
+  function isBuffMax(id){
+    const b = BUFF_BY_ID[id];
+    return b.infinite ? false : (buffLevels[id] >= b.levels.length - 1);
+  }
+  function nextUpgradeCost(id){
+    const b = BUFF_BY_ID[id];
+    if (b.infinite) return Math.round(90 * Math.pow(1.3, buffLevels[id]));
+    if (isBuffMax(id)) return null;
+    return b.levels[buffLevels[id]+1].cost;
+  }
+  function describeBuff(id){
+    const b = BUFF_BY_ID[id];
+    if (b.infinite){
+      const mult = b.base + b.step*buffLevels[id];
+      if (id === 'damage') return '全タワーの攻撃力 ×' + mult.toFixed(2);
+      if (id === 'range')  return '全タワーの射程 ×' + mult.toFixed(2);
+      if (id === 'gold')   return '撃破報酬 ×' + mult.toFixed(2);
+    }
+    const lvl = b.levels[buffLevels[id]];
+    if (id === 'rate') return '全タワーの連射間隔 ×' + lvl.mult.toFixed(2);
+    if (id === 'crit') return Math.round(lvl.chance*100) + '%の確率でダメージ2倍';
+  }
+
+  // ---------- ammo library (20 types) ----------
+  const AMMO_LIST = [
+    { id:'normal',        name:'通常弾',       cost:0,   dmg:13, fireRate:0.50, speed:520, color:'#8a94a6', desc:'バランスの取れた基本の矢。' },
+    { id:'rapid',         name:'連射弾',       cost:40,  dmg:6,  fireRate:0.16, speed:560, color:'#4da6ff', desc:'手数の多い高速射撃。' },
+    { id:'heavy',         name:'重量弾',       cost:55,  dmg:30, fireRate:1.00, speed:420, color:'#6b4a2f', desc:'一撃が重い鈍重な弾。' },
+    { id:'sniper',        name:'狙撃弾',       cost:110, dmg:60, fireRate:1.70, speed:720, color:'#333333', desc:'高威力の一点集中弾。' },
+    { id:'explosive',     name:'爆裂弾',       cost:80,  dmg:20, fireRate:0.90, speed:380, color:'#e08a2e', splash:50, desc:'着弾地点に爆風ダメージ。' },
+    { id:'mega_explosive',name:'大爆裂弾',     cost:160, dmg:26, fireRate:1.30, speed:340, color:'#c24a1f', splash:85, desc:'より広い範囲に爆風を発生。' },
+    { id:'frost',         name:'氷結弾',       cost:70,  dmg:8,  fireRate:0.60, speed:460, color:'#6fc6ff', slow:{factor:0.5, duration:2}, desc:'命中した敵の速度を半減。' },
+    { id:'deep_freeze',   name:'絶対零度弾',   cost:170, dmg:10, fireRate:1.00, speed:420, color:'#b7ecff', slow:{factor:0.15, duration:1.6}, desc:'敵をほぼ停止させる強力な冷気。' },
+    { id:'poison',        name:'猛毒針',       cost:75,  dmg:4,  fireRate:0.50, speed:480, color:'#6fbf3f', dot:{dps:7, duration:3}, desc:'継続ダメージを与える毒。' },
+    { id:'flame',         name:'火炎弾',       cost:95,  dmg:14, fireRate:0.70, speed:420, color:'#ff5a2e', splash:38, dot:{dps:5, duration:2}, desc:'爆風と延焼ダメージを与える。' },
+    { id:'chain',         name:'連鎖雷',       cost:130, dmg:16, fireRate:0.80, speed:600, color:'#f5e94a', chain:{jumps:2, radius:80, falloff:0.7}, desc:'近くの敵に雷が連鎖する。' },
+    { id:'stun',          name:'麻痺弾',       cost:105, dmg:10, fireRate:0.70, speed:500, color:'#c9a8ff', slow:{factor:0.05, duration:0.9}, desc:'一瞬だけ敵の動きをほぼ止める。' },
+    { id:'multishot',     name:'三連矢',       cost:115, dmg:10, fireRate:0.60, speed:500, color:'#5fbf5f', multishot:3, desc:'同時に3体を狙撃する。' },
+    { id:'pierce',        name:'貫通の矢',     cost:95,  dmg:16, fireRate:0.55, speed:560, color:'#b0b0b0', pierce:{count:2, radius:60, falloff:0.8}, desc:'後続の敵も貫通してヒット。' },
+    { id:'gold',          name:'金貨弾',       cost:60,  dmg:10, fireRate:0.50, speed:480, color:'#e0c23c', goldBonusPct:0.5, desc:'撃破時の報酬が1.5倍になる。' },
+    { id:'weaken',        name:'弱体化矢',     cost:85,  dmg:8,  fireRate:0.60, speed:480, color:'#a85c8a', weaken:{mult:1.3, duration:3}, desc:'命中した敵の被ダメージが増加。' },
+    { id:'anti_tank',     name:'対重装弾',     cost:120, dmg:16, fireRate:0.70, speed:460, color:'#8a6d3b', bonusVsType:{tank:2.2, boss:2.2}, desc:'重装甲の敵に大ダメージ。' },
+    { id:'anti_swarm',    name:'散弾',         cost:100, dmg:9,  fireRate:0.50, speed:460, color:'#ff9642', splash:65, bonusVsType:{fast:1.5}, desc:'広範囲の雑魚・高速の敵に有効。' },
+    { id:'ricochet',      name:'跳弾',         cost:105, dmg:13, fireRate:0.55, speed:520, color:'#55c1c9', chain:{jumps:1, radius:90, falloff:0.8}, desc:'命中後、隣の敵にも跳ね返る。' },
+    { id:'homing',        name:'追尾弾',       cost:90,  dmg:14, fireRate:0.60, speed:500, color:'#ff6fae', retarget:true, desc:'目標が消えても自動で狙いを変える。' },
+    { id:'diamond',       name:'ダイヤ弾',     cost:200, dmg:0,  fireRate:0,    speed:0,   color:'#5fd3f0', passive:true, diamondBonus:1, desc:'攻撃しない。装填中、ウェーブクリア時のダイヤ獲得量が+1。' },
+    { id:'execute',       name:'処刑弾',       cost:150, dmg:8,  fireRate:0.65, speed:480, color:'#d9364f', procHp:{chance:0.5, pct:0.5}, desc:'50%の確率で敵の現在HPの50%を追加で削る。' }
+  ];
+  const AMMO_BY_ID = {};
+  AMMO_LIST.forEach(a => AMMO_BY_ID[a.id] = a);
+  // ---------- cores (loaded into ammo slots; they don't shoot, they empower the tower) ----------
+  const CORE_LIST = [
+    { id:'core_atk', core:'atk', name:'攻撃のコア', color:'#ff5a4a', desc:'装填したタワーの攻撃力を2倍にする。弾は撃たない。' },
+    { id:'core_spd', core:'spd', name:'速度のコア', color:'#4da6ff', desc:'装填したタワーの攻撃速度を2倍にする。弾は撃たない。' },
+    { id:'core_rng', core:'rng', name:'射程のコア', color:'#5fbf5f', desc:'装填したタワーの射程を2倍にする。弾は撃たない。' }
+  ];
+  CORE_LIST.forEach(c => AMMO_BY_ID[c.id] = c);
+  // 3 cores loaded -> ultra bullet with every effect combined
+  AMMO_BY_ID.ultra = { id:'ultra', name:'ウルトラ弾', dmg:20, fireRate:0.5, speed:700, color:'#ff4dff',
+    splash:60, slow:{factor:0.5, duration:2}, dot:{dps:8, duration:3},
+    chain:{jumps:2, radius:80, falloff:0.7}, pierce:{count:2, radius:60, falloff:0.8},
+    weaken:{mult:1.3, duration:3}, procHp:{chance:0.5, pct:0.5} };
+  const CORE_COST_DIAMONDS = 20;
+  // ---------- inflation mode ----------
+  let inflation = false;
+  let boughtTowers = 0;
+  let placingTower = false;
+  let ammoLevels = {};
+  const blockedCells = new Set();
+  function cellKeyOf(x, y){ return Math.round((x-20)/40) + ',' + Math.round((y-20)/40); }
+  function towerCost(){ return Math.round(200 * Math.pow(1.7, boughtTowers)); }
+  function ammoLevel(ammo){ return inflation ? (ammoLevels[ammo.id] || 0) : 0; }
+  function ammoUpgradeCost(ammo){ return Math.round(Math.max(60, ammo.cost) * Math.pow(1.6, ammoLevel(ammo))); }
+  function ammoDmgMult(ammo){ return Math.pow(1.4, ammoLevel(ammo)); }
+  function ammoEffMult(ammo){ return 1 + 0.1 * ammoLevel(ammo); }
+  function sealRandomCell(){
+    const cands = [];
+    for (let c=0;c<COLS;c++) for (let r=0;r<ROWS;r++){
+      if (isValidSpot(c*40+20, r*40+20, null)) cands.push(c+','+r);
+    }
+    if (!cands.length) return false;
+    blockedCells.add(cands[Math.floor(Math.random()*cands.length)]);
+    return true;
+  }
+  function diamondBonus(){
+    let n = 0;
+    for (const t of towers.concat(ampTowers)) for (const id of t.ammoSlots) n += (AMMO_BY_ID[id].diamondBonus || 0);
+    return n;
+  }
+  function hasCore(t, kind){ return t.ammoSlots.some(id => AMMO_BY_ID[id].core === kind); }
+  function towerRange(t){ return TOWER_RANGE * rangeMultiplier() * (hasCore(t,'rng') ? 2 : 1); }
+  function drawUltraRing(t){
+    if (t.ammoSlots.every(id => AMMO_BY_ID[id].core)){
+      ctx.beginPath(); ctx.arc(t.x, t.y, 29, 0, Math.PI*2);
+      ctx.strokeStyle = '#ff4dff'; ctx.lineWidth = 2.5; ctx.stroke();
+    }
+  }
+  function drawPip(px, py, ammo, active){
+    ctx.beginPath();
+    if (ammo.core || ammo.passive){
+      ctx.save(); ctx.translate(px, py); ctx.rotate(Math.PI/4);
+      ctx.rect(-5, -5, 10, 10); ctx.restore();
+    } else {
+      ctx.arc(px, py, 6, 0, Math.PI*2);
+    }
+    ctx.fillStyle = ammo.color;
+    ctx.fill();
+    if (active){ ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke(); }
+  }
+  let unlockedAmmo = new Set(['normal']);
+
+  // ---------- enemy config ----------
+  const ENEMY_CONFIG = {
+    normal: { hp:40,  speed:58,  reward:10,  color:'#c94a3a', radius:12 },
+    fast:   { hp:24,  speed:105, reward:12,  color:'#e0b93c', radius:10 },
+    tank:   { hp:150, speed:34,  reward:30,  color:'#7a5230', radius:16 },
+    boss:   { hp:650, speed:38,  reward:130, color:'#6b3c96', radius:22 }
+  };
+
+  // ---------- state ----------
+  let money = 150, diamonds = 0, lives = 20, wave = 0;
+  let enemies = [], projectiles = [], fx = [];
+  let spawnQueue = [], spawnTimer = 0, spawnInterval = 0.8, waveInProgress = false;
+  let selectedKind = null, selectedTower = null, selectedPairId = null, selectedAmpId = null; // selectedKind: 'tower' | 'buff' | 'pair' | 'amp'
+  let gameOver = false, paused = false, speedMul = 1;
+  let enemyIdSeq = 1;
+  let modalCtx = null;
+  let pairStatusEl = null, pairMoveBtnEl = null, pairSkipBtnEl = null;
+  let mouseX = -1, mouseY = -1;
+  const SWARM_MOVE_COOLDOWN = 10;
+  let movingSwarm = false;
+  let swarmNoteEl = null, swarmMoveBtnEl = null;
+
+  initTowers();
+
+  // ---------- DOM refs ----------
+  const statMoney = document.getElementById('statMoney');
+  const statDiamonds = document.getElementById('statDiamonds');
+  const statLives = document.getElementById('statLives');
+  const statWave = document.getElementById('statWave');
+  const btnStartWave = document.getElementById('btnStartWave');
+  const btnSpeed = document.getElementById('btnSpeed');
+  const infoPanel = document.getElementById('infoPanel');
+  const infoName = document.getElementById('infoName');
+  const slotRow = document.getElementById('slotRow');
+  const btnCloseInfo = document.getElementById('btnCloseInfo');
+  const overlay = document.getElementById('overlay');
+  const overlayText = document.getElementById('overlayText');
+  const btnRestart = document.getElementById('btnRestart');
+  const toastEl = document.getElementById('toast');
+  const collectionBar = document.getElementById('collectionBar');
+  const collectionCount = document.getElementById('collectionCount');
+  const ampCount = document.getElementById('ampCount');
+  const btnBuyAmp = document.getElementById('btnBuyAmp');
+  const modeLabel = document.getElementById('modeLabel');
+  const btnMode = document.getElementById('btnMode');
+  const towerBar = document.getElementById('towerBar');
+  const towerCountEl = document.getElementById('towerCount');
+  const btnBuyTower = document.getElementById('btnBuyTower');
+  const ammoModal = document.getElementById('ammoModal');
+  const modalTitle = document.getElementById('modalTitle');
+  const modalList = document.getElementById('modalList');
+  const modalClose = document.getElementById('modalClose');
+  let toastTimer = null;
+
+  function showToast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2200);
+  }
+
+  function updateHUD(){
+    statMoney.textContent = money;
+    statDiamonds.textContent = diamonds;
+    statLives.textContent = lives;
+    statWave.textContent = wave;
+    btnStartWave.disabled = waveInProgress || gameOver;
+    btnStartWave.textContent = waveInProgress ? 'ウェーブ進行中…' : (wave === 0 ? 'ウェーブ開始' : '次のウェーブ');
+    collectionCount.textContent = AMMO_LIST.filter(a => unlockedAmmo.has(a.id)).length + '/' + AMMO_LIST.length;
+    ampCount.textContent = ampTowers.length;
+    btnBuyAmp.textContent = placingAmp ? '設置先をタップ（キャンセル）' : ('💎' + AMP_COST_DIAMONDS + 'で追加');
+    btnBuyAmp.disabled = !placingAmp && diamonds < AMP_COST_DIAMONDS;
+    modeLabel.textContent = inflation ? 'インフレモード（敵のHPと報酬が急上昇／5Waveごとにボスがマスを封鎖）' : '通常モード';
+    btnMode.textContent = inflation ? '通常モードにする' : 'インフレモードにする';
+    btnMode.disabled = wave > 0;
+    towerBar.style.display = inflation ? '' : 'none';
+    towerCountEl.textContent = boughtTowers;
+    btnBuyTower.textContent = placingTower ? '設置先をタップ（キャンセル）' : ('💰' + towerCost() + 'で購入');
+    btnBuyTower.disabled = !placingTower && money < towerCost();
+  }
+
+  // ---------- info panel ----------
+  function renderTowerSlots(towerObj, kind){
+    towerObj.ammoSlots.forEach((ammoId, idx) => {
+      const ammo = AMMO_BY_ID[ammoId];
+      const btn = document.createElement('button');
+      btn.className = 'slotBtn';
+      btn.innerHTML =
+        '<span class="swatch" style="background:'+ammo.color+'"></span>' +
+        '<span class="sname">'+ammo.name+'</span>' +
+        '<span class="slabel">スロット'+(idx+1)+'</span>';
+      btn.addEventListener('click', () => openAmmoModal({ mode:'equip', kind, towerId: towerObj.id, slotIndex: idx }));
+      slotRow.appendChild(btn);
+    });
+  }
+  function renderInfoPanel(){
+    if (!selectedKind){ infoPanel.classList.remove('show'); return; }
+    infoPanel.classList.add('show');
+    slotRow.innerHTML = '';
+
+    if (selectedKind === 'tower'){
+      const t = selectedTower;
+      let title = 'タワー ' + t.id;
+      if (pairBuffMultiplier(t) > 1) title += '（🤝ペア強化中）';
+      if (t.isSwarm) title += '（⚔️群衆特効）';
+      infoName.textContent = title;
+      renderTowerSlots(t, 'tower');
+      if (t.isSwarm){
+        const note = document.createElement('div');
+        note.style.cssText = 'flex:1 1 100%; font-size:11px; color:var(--text-dim); margin-top:6px;';
+        note.textContent = '現在の敵の数: ' + enemies.length + ' 体 → ダメージ倍率 ×' + swarmMultiplier().toFixed(2) + '（敵が多いほど指数的に上昇、最大×' + SWARM_CAP + '）';
+        slotRow.appendChild(note);
+        swarmNoteEl = note;
+        swarmMoveBtnEl = document.createElement('button');
+        swarmMoveBtnEl.style.flex = '1 1 100%';
+        swarmMoveBtnEl.style.marginTop = '8px';
+        if (movingSwarm){
+          swarmMoveBtnEl.textContent = '移動先をマップでタップ（キャンセル）';
+          swarmMoveBtnEl.addEventListener('click', () => { movingSwarm = false; renderInfoPanel(); });
+        } else {
+          swarmMoveBtnEl.textContent = t.moveCooldown > 0 ? ('移動まであと ' + Math.ceil(t.moveCooldown) + ' 秒') : '移動する';
+          swarmMoveBtnEl.disabled = t.moveCooldown > 0;
+          swarmMoveBtnEl.addEventListener('click', () => {
+            if (t.moveCooldown > 0) return;
+            movingSwarm = true;
+            renderInfoPanel();
+            showToast('移動先のマスをタップしてください');
+          });
+        }
+        slotRow.appendChild(swarmMoveBtnEl);
+      }
+    } else if (selectedKind === 'buff'){
+      infoName.textContent = '指揮タワー 👑 （バフを2つまで選択・ゴールドで強化）';
+      BUFF_LIST.forEach(b => {
+        const active = buffTower.buffs.includes(b.id);
+        const lvlIdx = buffLevels[b.id];
+        const isMax = isBuffMax(b.id);
+        const nextCost = isMax ? null : nextUpgradeCost(b.id);
+
+        const chip = document.createElement('div');
+        chip.className = 'buffChip' + (active ? ' active' : '');
+        chip.innerHTML =
+          '<span class="bname"><span class="swatch" style="background:'+b.color+'"></span>'+b.name+' Lv.'+(lvlIdx+1)+'</span>' +
+          '<span class="bdesc">'+describeBuff(b.id)+'</span>' +
+          '<span class="chipActions"></span>';
+
+        const selectBtn = document.createElement('button');
+        selectBtn.className = 'chipBtn';
+        selectBtn.textContent = active ? '選択中' : '選択する';
+        selectBtn.addEventListener('click', () => {
+          if (active){
+            buffTower.buffs = buffTower.buffs.filter(id => id !== b.id);
+          } else {
+            if (buffTower.buffs.length >= 2){
+              showToast('バフは同時に2つまでしか選べません');
+              return;
+            }
+            buffTower.buffs.push(b.id);
+          }
+          renderInfoPanel();
+        });
+
+        const upgradeBtn = document.createElement('button');
+        upgradeBtn.className = 'chipBtn';
+        if (isMax){
+          upgradeBtn.textContent = '最大強化済み';
+          upgradeBtn.disabled = true;
+        } else {
+          upgradeBtn.textContent = '強化 💰' + nextCost;
+          upgradeBtn.disabled = money < nextCost;
+          upgradeBtn.addEventListener('click', () => {
+            if (money < nextCost) return;
+            money -= nextCost;
+            buffLevels[b.id] = lvlIdx + 1;
+            updateHUD();
+            renderInfoPanel();
+            showToast(b.name + ' が Lv.' + (lvlIdx+2) + ' に強化されました');
+          });
+        }
+
+        chip.querySelector('.chipActions').appendChild(selectBtn);
+        chip.querySelector('.chipActions').appendChild(upgradeBtn);
+        slotRow.appendChild(chip);
+      });
+    } else if (selectedKind === 'pair'){
+      const pt = pairTowers.find(p => p.id === selectedPairId);
+      if (!pt){ infoPanel.classList.remove('show'); return; }
+      infoName.textContent = '🤝 ペアタワー';
+      pairStatusEl = document.createElement('div');
+      pairStatusEl.style.cssText = 'flex:1 1 100%; font-size:12px; color:var(--text-dim); margin-bottom:8px;';
+      pairStatusEl.textContent = pt.cooldown > 0
+        ? ('移動まであと ' + Math.ceil(pt.cooldown) + ' 秒')
+        : '隣接する攻撃タワーの攻撃力を強化中。移動可能です。';
+      slotRow.appendChild(pairStatusEl);
+
+      pairMoveBtnEl = document.createElement('button');
+      pairMoveBtnEl.style.flex = '1 1 100%';
+      if (movingPairId === pt.id){
+        pairMoveBtnEl.textContent = '移動先をマップでタップ（キャンセル）';
+        pairMoveBtnEl.addEventListener('click', () => { movingPairId = null; renderInfoPanel(); });
+      } else {
+        pairMoveBtnEl.textContent = pt.cooldown > 0 ? 'クールタイム中' : '移動する';
+        pairMoveBtnEl.disabled = pt.cooldown > 0;
+        pairMoveBtnEl.addEventListener('click', () => {
+          movingPairId = pt.id;
+          renderInfoPanel();
+          showToast('移動先のマスをタップしてください');
+        });
+      }
+      slotRow.appendChild(pairMoveBtnEl);
+
+      pairSkipBtnEl = document.createElement('button');
+      pairSkipBtnEl.style.flex = '1 1 100%';
+      pairSkipBtnEl.className = 'ghost';
+      pairSkipBtnEl.textContent = '💎1で今すぐ移動可能に';
+      pairSkipBtnEl.style.display = pt.cooldown > 0 ? '' : 'none';
+      pairSkipBtnEl.disabled = diamonds < 1;
+      pairSkipBtnEl.addEventListener('click', () => {
+        if (diamonds < 1 || pt.cooldown <= 0) return;
+        diamonds -= 1;
+        pt.cooldown = 0;
+        updateHUD();
+        renderInfoPanel();
+        showToast('💎を使ってクールタイムを解除しました');
+      });
+      slotRow.appendChild(pairSkipBtnEl);
+    } else if (selectedKind === 'amp'){
+      const a = ampTowers.find(x => x.id === selectedAmpId);
+      if (!a){ infoPanel.classList.remove('show'); return; }
+      infoName.textContent = '🔧 強化タワー（弾ダメージ・効果 ×' + AMP_MULT + '）';
+      renderTowerSlots(a, 'amp');
+    }
+  }
+  function tickSwarmPanel(){
+    if (selectedKind !== 'tower' || !selectedTower || !selectedTower.isSwarm || movingSwarm) return;
+    if (!swarmNoteEl || !swarmMoveBtnEl) return;
+    const t = selectedTower;
+    swarmNoteEl.textContent = '現在の敵の数: ' + enemies.length + ' 体 → ダメージ倍率 ×' + swarmMultiplier().toFixed(2) + '（敵が多いほど指数的に上昇、最大×' + SWARM_CAP + '）';
+    swarmMoveBtnEl.textContent = t.moveCooldown > 0 ? ('移動まであと ' + Math.ceil(t.moveCooldown) + ' 秒') : '移動する';
+    swarmMoveBtnEl.disabled = t.moveCooldown > 0;
+  }
+  function tickPairPanel(){
+    if (selectedKind !== 'pair' || movingPairId) return;
+    const pt = pairTowers.find(p => p.id === selectedPairId);
+    if (!pt || !pairStatusEl || !pairMoveBtnEl || !pairSkipBtnEl) return;
+    pairStatusEl.textContent = pt.cooldown > 0
+      ? ('移動まであと ' + Math.ceil(pt.cooldown) + ' 秒')
+      : '隣接する攻撃タワーの攻撃力を強化中。移動可能です。';
+    pairMoveBtnEl.textContent = pt.cooldown > 0 ? 'クールタイム中' : '移動する';
+    pairMoveBtnEl.disabled = pt.cooldown > 0;
+    pairSkipBtnEl.style.display = pt.cooldown > 0 ? '' : 'none';
+    pairSkipBtnEl.disabled = diamonds < 1;
+  }
+  btnCloseInfo.addEventListener('click', () => { selectedKind = null; selectedTower = null; selectedPairId = null; selectedAmpId = null; movingPairId = null; movingSwarm = false; placingAmp = false; placingTower = false; updateHUD(); renderInfoPanel(); });
+
+  // ---------- ammo modal ----------
+  function openAmmoModal(ctxObj){
+    modalCtx = ctxObj;
+    modalTitle.textContent = ctxObj.mode === 'equip' ? 'スロットに装備する弾薬・コアを選ぶ' : '弾薬コレクション';
+    renderAmmoModalList();
+    ammoModal.classList.add('show');
+  }
+  function closeAmmoModal(){ ammoModal.classList.remove('show'); modalCtx = null; }
+  modalClose.addEventListener('click', closeAmmoModal);
+  ammoModal.addEventListener('click', (e) => { if (e.target === ammoModal) closeAmmoModal(); });
+  collectionBar.addEventListener('click', () => openAmmoModal({ mode:'browse' }));
+
+  btnMode.addEventListener('click', () => {
+    if (wave > 0) return;
+    inflation = !inflation;
+    placingTower = false;
+    updateHUD();
+    showToast(inflation ? 'インフレモード ON：タワー購入・弾のゴールド強化が解放！' : '通常モードに戻しました');
+  });
+  btnBuyTower.addEventListener('click', () => {
+    if (placingTower){ placingTower = false; updateHUD(); return; }
+    if (money < towerCost()){ showToast('ゴールドが足りません（必要: 💰' + towerCost() + '）'); return; }
+    if (!hasFreeGridSpot()){ showToast('フィールドに空きがなく設置できません'); return; }
+    placingAmp = false; placingTower = true;
+    updateHUD();
+    showToast('タワーの設置場所をタップしてください');
+  });
+  btnBuyAmp.addEventListener('click', () => {
+    if (placingAmp){
+      placingAmp = false;
+      updateHUD();
+      return;
+    }
+    if (diamonds < AMP_COST_DIAMONDS){
+      showToast('ダイヤが足りません（必要: 💎' + AMP_COST_DIAMONDS + '）');
+      return;
+    }
+    if (!hasFreeGridSpot()){
+      showToast('フィールドに空きがなく設置できません');
+      return;
+    }
+    placingAmp = true; placingTower = false;
+    updateHUD();
+    showToast('強化タワーの設置場所をタップしてください');
+  });
+
+  function renderAmmoModalList(){
+    modalList.innerHTML = '';
+    const towerList = modalCtx.kind === 'amp' ? ampTowers : towers;
+    const curTower = (modalCtx.mode === 'equip') ? towerList.find(t => t.id === modalCtx.towerId) : null;
+    const equippedId = curTower ? curTower.ammoSlots[modalCtx.slotIndex] : null;
+    AMMO_LIST.concat(CORE_LIST).forEach(ammo => {
+      const owned = ammo.core ? !!(curTower && curTower.ownedCores.includes(ammo.id)) : unlockedAmmo.has(ammo.id);
+      const card = document.createElement('div');
+      card.className = 'ammoCard' + (owned ? ' owned' : '');
+      let statLine = ammo.passive ? '攻撃しない／ウェーブクリア時のダイヤ +' + ammo.diamondBonus : ammo.core ? 'コア（弾は撃たず、タワーを強化）／タワーごとに💎20で入手' : ('威力' + ammo.dmg + ' ／ 連射' + ammo.fireRate.toFixed(2) + '秒');
+      const dupCore = !!(ammo.core && curTower && curTower.ammoSlots.some((id,i) => id === ammo.id && i !== modalCtx.slotIndex));
+      const btn = document.createElement('button');
+
+      if (modalCtx.mode === 'equip'){
+        if (ammo.id === equippedId){
+          btn.textContent = '装備中';
+          btn.disabled = true;
+          btn.className = 'ghost';
+        } else if (dupCore){
+          btn.textContent = '他スロットで装備中';
+          btn.disabled = true;
+          btn.className = 'ghost';
+        } else if (ammo.core && !owned){
+          btn.textContent = '入手して装備 💎' + CORE_COST_DIAMONDS;
+          btn.disabled = diamonds < CORE_COST_DIAMONDS;
+          btn.addEventListener('click', () => {
+            if (diamonds < CORE_COST_DIAMONDS) return;
+            diamonds -= CORE_COST_DIAMONDS;
+            const t = towerList.find(tw => tw.id === modalCtx.towerId);
+            t.ownedCores.push(ammo.id);
+            t.ammoSlots[modalCtx.slotIndex] = ammo.id;
+            updateHUD();
+            closeAmmoModal();
+            renderInfoPanel();
+            showToast(ammo.name + ' を入手して装備しました');
+          });
+        } else if (owned){
+          btn.textContent = '装備する';
+          btn.addEventListener('click', () => {
+            const t = towerList.find(tw => tw.id === modalCtx.towerId);
+            t.ammoSlots[modalCtx.slotIndex] = ammo.id;
+            closeAmmoModal();
+            renderInfoPanel();
+            showToast(ammo.name + ' を装備しました');
+          });
+        } else {
+          btn.textContent = '解放して装備 💰' + ammo.cost;
+          btn.disabled = money < ammo.cost;
+          btn.addEventListener('click', () => {
+            if (money < ammo.cost) return;
+            money -= ammo.cost;
+            unlockedAmmo.add(ammo.id);
+            const t = towerList.find(tw => tw.id === modalCtx.towerId);
+            t.ammoSlots[modalCtx.slotIndex] = ammo.id;
+            updateHUD();
+            closeAmmoModal();
+            renderInfoPanel();
+            showToast(ammo.name + ' を解放して装備しました');
+          });
+        }
+      } else if (ammo.core){
+        btn.textContent = 'タワーごとに💎' + CORE_COST_DIAMONDS;
+        btn.className = 'ghost';
+        btn.disabled = true;
+      } else {
+        if (owned){
+          btn.textContent = '所持済み';
+          btn.className = 'ghost';
+          btn.disabled = true;
+        } else {
+          btn.textContent = '解放 💰' + ammo.cost;
+          btn.disabled = money < ammo.cost;
+          btn.addEventListener('click', () => {
+            if (money < ammo.cost) return;
+            money -= ammo.cost;
+            unlockedAmmo.add(ammo.id);
+            updateHUD();
+            renderAmmoModalList();
+            showToast(ammo.name + ' を解放しました');
+          });
+        }
+      }
+
+      if (inflation && !ammo.core && !ammo.passive){
+        statLine += ' ／ Lv.' + ammoLevel(ammo) + '（威力×' + ammoDmgMult(ammo).toFixed(2) + '）';
+      }
+      card.innerHTML =
+        '<span class="swatch" style="background:'+ammo.color+'"></span>' +
+        '<div class="info"><div class="aname">'+ammo.name+'</div>' +
+        '<div class="astat">'+statLine+'</div>' +
+        '<div class="adesc">'+ammo.desc+'</div></div>';
+      if (inflation && owned && !ammo.core && !ammo.passive){
+        const cost = ammoUpgradeCost(ammo);
+        const up = document.createElement('button');
+        up.textContent = '強化 💰' + cost;
+        up.disabled = money < cost;
+        up.addEventListener('click', () => {
+          if (money < cost) return;
+          money -= cost;
+          ammoLevels[ammo.id] = (ammoLevels[ammo.id] || 0) + 1;
+          updateHUD();
+          renderAmmoModalList();
+        });
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'display:flex; flex-direction:column; gap:4px; flex-shrink:0;';
+        wrap.appendChild(btn); wrap.appendChild(up);
+        card.appendChild(wrap);
+      } else {
+        card.appendChild(btn);
+      }
+      modalList.appendChild(card);
+    });
+  }
+
+  // ---------- wave generation ----------
+  function generateWave(n){
+    const list = [];
+    const normalCount = 5 + n;
+    for (let i=0;i<normalCount;i++) list.push('normal');
+    if (n >= 2) for (let i=0;i<n;i++) list.push('fast');
+    if (n >= 3) for (let i=0;i<Math.floor(n/2);i++) list.push('tank');
+    if (n % 5 === 0) for (let i=0;i<Math.floor(n/5);i++) list.push('boss');
+    for (let i=list.length-1;i>0;i--){
+      if (Math.random() < 0.5){
+        const j = Math.floor(Math.random()*(i+1));
+        [list[i],list[j]] = [list[j],list[i]];
+      }
+    }
+    spawnInterval = Math.max(0.85 - n*0.02, 0.35);
+    return list;
+  }
+  function startWave(){
+    if (waveInProgress || gameOver) return;
+    wave++;
+    spawnQueue = generateWave(wave);
+    spawnTimer = 0;
+    waveInProgress = true;
+    updateHUD();
+  }
+  btnStartWave.addEventListener('click', startWave);
+  btnSpeed.addEventListener('click', () => {
+    speedMul = speedMul === 1 ? 2 : 1;
+    btnSpeed.textContent = 'x' + speedMul;
+  });
+
+  function spawnEnemyOfType(type){
+    const cfg = ENEMY_CONFIG[type];
+    const hpMul = inflation ? Math.pow(1.3, wave-1) : 1 + (wave-1)*0.16;
+    const spMul = inflation ? 1 + (wave-1)*0.03 : 1 + (wave-1)*0.02;
+    const rwMul = inflation ? Math.pow(1.25, wave-1) : 1 + (wave-1)*0.08;
+    enemies.push({
+      id: enemyIdSeq++, type,
+      hp: cfg.hp*hpMul, maxHp: cfg.hp*hpMul,
+      baseSpeed: cfg.speed*spMul,
+      reward: Math.round(cfg.reward*rwMul),
+      radius: cfg.radius, color: cfg.color,
+      traveled: 0, x: PATH[0].x, y: PATH[0].y,
+      slowTimer:0, slowFactor:1, dotDps:0, dotTimeLeft:0, weakenMult:1, weakenTimer:0,
+      dead:false, reachedEnd:false
+    });
+  }
+
+  // ---------- input ----------
+  function getCanvasCoords(evt){
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width, scaleY = canvas.height / rect.height;
+    return { x:(evt.clientX-rect.left)*scaleX, y:(evt.clientY-rect.top)*scaleY };
+  }
+  canvas.addEventListener('pointermove', (evt) => {
+    const p = getCanvasCoords(evt);
+    mouseX = p.x; mouseY = p.y;
+  });
+  canvas.addEventListener('pointerleave', () => { mouseX = -1; mouseY = -1; });
+  canvas.addEventListener('pointerdown', (evt) => {
+    if (gameOver) return;
+    const p = getCanvasCoords(evt);
+
+    if (movingPairId){
+      const pt = pairTowers.find(pp => pp.id === movingPairId);
+      const snap = snapToGrid(p.x, p.y);
+      if (pt && isValidSpot(snap.x, snap.y, pt.id)){
+        pt.x = snap.x; pt.y = snap.y; pt.cooldown = PAIR_MOVE_COOLDOWN;
+        movingPairId = null;
+        selectedKind = 'pair'; selectedPairId = pt.id;
+        showToast('ペアタワーを移動しました');
+      } else {
+        showToast('そこには移動できません');
+      }
+      renderInfoPanel();
+      return;
+    }
+
+    if (movingSwarm){
+      const st = selectedTower;
+      const snap = snapToGrid(p.x, p.y);
+      if (st && st.isSwarm && isValidSpot(snap.x, snap.y, null, st)){
+        st.x = snap.x; st.y = snap.y; st.moveCooldown = SWARM_MOVE_COOLDOWN;
+        movingSwarm = false;
+        showToast('群衆特効タワーを移動しました');
+      } else {
+        showToast('そこには移動できません');
+      }
+      renderInfoPanel();
+      return;
+    }
+
+    if (placingTower){
+      const snap = snapToGrid(p.x, p.y);
+      if (isValidSpot(snap.x, snap.y, null) && money >= towerCost()){
+        money -= towerCost();
+        boughtTowers++;
+        const nt = { id: Math.max(...towers.map(t => t.id)) + 1, x: snap.x, y: snap.y, ammoSlots:['normal','normal','normal'], slotIndex:0, cooldown:0, isSwarm:false, moveCooldown:0, ownedCores:[] };
+        towers.push(nt);
+        placingTower = false;
+        selectedKind = 'tower'; selectedTower = nt;
+        updateHUD();
+        showToast('タワーを購入しました');
+      } else {
+        showToast('そこには設置できません');
+      }
+      renderInfoPanel();
+      return;
+    }
+
+    if (placingAmp){
+      const snap = snapToGrid(p.x, p.y);
+      if (isValidSpot(snap.x, snap.y, null)){
+        diamonds -= AMP_COST_DIAMONDS;
+        const amp = { id: ampIdSeq++, x: snap.x, y: snap.y, ammoSlots:['normal','normal','normal'], slotIndex:0, cooldown:0, isAmp:true, ownedCores: [] };
+        ampTowers.push(amp);
+        placingAmp = false;
+        selectedKind = 'amp'; selectedAmpId = amp.id;
+        updateHUD();
+        showToast('強化タワーを設置しました');
+      } else {
+        showToast('そこには設置できません');
+      }
+      renderInfoPanel();
+      return;
+    }
+
+    const hitTower = towers.find(t => Math.hypot(t.x-p.x, t.y-p.y) < 19);
+    const hitPair = pairTowers.find(pp => Math.hypot(pp.x-p.x, pp.y-p.y) < 19);
+    const hitAmp = ampTowers.find(a => Math.hypot(a.x-p.x, a.y-p.y) < 19);
+    if (hitTower){
+      selectedKind = 'tower'; selectedTower = hitTower; selectedPairId = null; selectedAmpId = null;
+    } else if (Math.hypot(buffTower.x-p.x, buffTower.y-p.y) < 19){
+      selectedKind = 'buff'; selectedTower = null; selectedPairId = null; selectedAmpId = null;
+    } else if (hitPair){
+      selectedKind = 'pair'; selectedTower = null; selectedPairId = hitPair.id; selectedAmpId = null;
+    } else if (hitAmp){
+      selectedKind = 'amp'; selectedTower = null; selectedPairId = null; selectedAmpId = hitAmp.id;
+    } else {
+      selectedKind = null; selectedTower = null; selectedPairId = null; selectedAmpId = null;
+    }
+    renderInfoPanel();
+  });
+
+  // ---------- game over / restart ----------
+  function triggerGameOver(){
+    gameOver = true;
+    overlayText.textContent = '第' + wave + 'ウェーブで砦は陥落した。';
+    overlay.classList.add('show');
+    updateHUD();
+  }
+  btnRestart.addEventListener('click', () => {
+    money = 150; diamonds = 0; lives = 20; wave = 0;
+    enemies = []; projectiles = []; fx = [];
+    spawnQueue = []; waveInProgress = false;
+    selectedKind = null; selectedTower = null; selectedPairId = null; selectedAmpId = null; movingPairId = null; movingSwarm = false; placingAmp = false; placingTower = false; gameOver = false;
+    unlockedAmmo = new Set(['normal']);
+    buffTower.buffs = [];
+    buffLevels = { damage:0, rate:0, range:0, gold:0, crit:0 };
+    pairTowers = [];
+    ampTowers = [];
+    blockedCells.clear(); boughtTowers = 0; ammoLevels = {};
+    initTowers();
+    overlay.classList.remove('show');
+    renderInfoPanel();
+    updateHUD();
+  });
+
+  // ---------- damage / effects ----------
+  function applyDamage(e, dmg, goldBonusPct){
+    if (e.dead) return;
+    e.hp -= dmg;
+    if (e.hp <= 0){
+      e.dead = true;
+      money += Math.round(e.reward * (1 + (goldBonusPct||0)) * goldMultiplier());
+    }
+  }
+
+  function resolveHit(ammo, target, baseDmg, ampMult){
+    ampMult = ampMult || 1;
+    let dmg = baseDmg;
+    if (ammo.bonusVsType && ammo.bonusVsType[target.type]) dmg *= ammo.bonusVsType[target.type];
+    dmg *= (target.weakenMult || 1);
+    applyDamage(target, dmg, ammo.goldBonusPct);
+
+    if (ammo.procHp){
+      const chance = Math.min(1, ammo.procHp.chance*ampMult);
+      if (!target.dead && Math.random() < chance){
+        const pct = Math.min(0.95, ammo.procHp.pct*ampMult);
+        applyDamage(target, target.hp*pct, ammo.goldBonusPct);
+        fx.push({ type:'execute', x:target.x, y:target.y, life:0.4, maxLife:0.4 });
+      }
+    }
+
+    if (ammo.slow){
+      target.slowFactor = ammo.slow.factor;
+      target.slowTimer = Math.max(target.slowTimer||0, ammo.slow.duration*ampMult);
+    }
+    if (ammo.dot){
+      target.dotDps = ammo.dot.dps*ampMult;
+      target.dotTimeLeft = Math.max(target.dotTimeLeft||0, ammo.dot.duration);
+    }
+    if (ammo.weaken){
+      target.weakenMult = 1 + (ammo.weaken.mult-1)*ampMult;
+      target.weakenTimer = ammo.weaken.duration*ampMult;
+    }
+    if (ammo.splash){
+      const splashRadius = ammo.splash*ampMult;
+      fx.push({ type:'splash', x:target.x, y:target.y, radius:splashRadius, color:ammo.color, life:0.35, maxLife:0.35 });
+      for (const e of enemies){
+        if (e === target || e.dead) continue;
+        if (Math.hypot(e.x-target.x, e.y-target.y) <= splashRadius){
+          let d2 = baseDmg*0.6;
+          if (ammo.bonusVsType && ammo.bonusVsType[e.type]) d2 *= ammo.bonusVsType[e.type];
+          d2 *= (e.weakenMult||1);
+          applyDamage(e, d2, ammo.goldBonusPct);
+        }
+      }
+    }
+    if (ammo.chain){
+      const chainRadius = ammo.chain.radius*ampMult;
+      let current = target, curDmg = dmg;
+      const hitIds = new Set([target.id]);
+      const points = [{x:target.x,y:target.y}];
+      for (let i=0;i<ammo.chain.jumps;i++){
+        let next=null, nd=Infinity;
+        for (const e of enemies){
+          if (e.dead || hitIds.has(e.id)) continue;
+          const d = Math.hypot(e.x-current.x, e.y-current.y);
+          if (d <= chainRadius && d < nd){ nd=d; next=e; }
+        }
+        if (!next) break;
+        curDmg *= ammo.chain.falloff;
+        applyDamage(next, curDmg, ammo.goldBonusPct);
+        hitIds.add(next.id);
+        points.push({x:next.x,y:next.y});
+        current = next;
+      }
+      if (points.length > 1) fx.push({ type:'chain', points, color:ammo.color, life:0.3, maxLife:0.3 });
+    }
+    if (ammo.pierce){
+      const pierceRadius = ammo.pierce.radius*ampMult;
+      let curDmg = dmg;
+      const hitIds = new Set([target.id]);
+      const points = [{x:target.x,y:target.y}];
+      for (let i=0;i<ammo.pierce.count;i++){
+        let next=null, nd=Infinity;
+        for (const e of enemies){
+          if (e.dead || hitIds.has(e.id)) continue;
+          if (e.traveled <= target.traveled) continue;
+          const d = Math.hypot(e.x-target.x, e.y-target.y);
+          if (d <= pierceRadius && d < nd){ nd=d; next=e; }
+        }
+        if (!next) break;
+        curDmg *= ammo.pierce.falloff;
+        applyDamage(next, curDmg, ammo.goldBonusPct);
+        hitIds.add(next.id);
+        points.push({x:next.x,y:next.y});
+      }
+      if (points.length > 1) fx.push({ type:'pierce', points, color:ammo.color, life:0.3, maxLife:0.3 });
+    }
+  }
+
+  // ---------- update ----------
+  function updateEnemies(dt){
+    for (const e of enemies){
+      if (e.weakenTimer > 0){ e.weakenTimer -= dt; if (e.weakenTimer <= 0){ e.weakenTimer=0; e.weakenMult=1; } }
+      if (e.dotTimeLeft > 0){
+        applyDamage(e, e.dotDps*dt, 0);
+        e.dotTimeLeft -= dt;
+        if (e.dotTimeLeft < 0) e.dotTimeLeft = 0;
+      }
+      if (e.dead) continue;
+      if (e.slowTimer > 0) e.slowTimer -= dt;
+      const speed = e.baseSpeed * (e.slowTimer > 0 ? e.slowFactor : 1);
+      e.traveled += speed * dt;
+      if (e.traveled >= TOTAL_LEN){
+        e.reachedEnd = true;
+        lives--;
+        if (lives <= 0){ lives = 0; triggerGameOver(); }
+        continue;
+      }
+      const pos = pointAtDistance(e.traveled);
+      e.x = pos.x; e.y = pos.y;
+    }
+    enemies = enemies.filter(e => !e.dead && !e.reachedEnd);
+  }
+
+  function findTarget(t, range, excluded){
+    let best=null, bestTraveled=-1;
+    for (const e of enemies){
+      if (e.dead) continue;
+      if (excluded && excluded.has(e.id)) continue;
+      const d = Math.hypot(e.x-t.x, e.y-t.y);
+      if (d <= range && e.traveled > bestTraveled){ bestTraveled = e.traveled; best = e; }
+    }
+    return best;
+  }
+
+  function fireTower(t, ammo){
+    const range = towerRange(t);
+    const targets = [];
+    if (ammo.multishot && ammo.multishot > 1){
+      const excluded = new Set();
+      for (let i=0;i<ammo.multishot;i++){
+        const tgt = findTarget(t, range, excluded);
+        if (tgt){ targets.push(tgt); excluded.add(tgt.id); }
+        else if (targets.length){ targets.push(targets[0]); }
+      }
+    } else {
+      const tgt = findTarget(t, range);
+      if (tgt) targets.push(tgt);
+    }
+    if (!targets.length) return false;
+    const selfMult = t.isAmp ? AMP_MULT : 1;
+    const coreAtk = hasCore(t,'atk') ? 2 : 1;
+    const swarmMult = t.isSwarm ? swarmMultiplier() : 1;
+    for (const tgt of targets){
+      const dmg = ammo.dmg * dmgMultiplier() * rollCritMultiplier() * pairBuffMultiplier(t) * selfMult * swarmMult * coreAtk * ammoDmgMult(ammo);
+      projectiles.push({ x:t.x, y:t.y, targetId:tgt.id, speed:ammo.speed, damage:dmg, ammoId:ammo.id, ampMult:selfMult * ammoEffMult(ammo) });
+    }
+    return true;
+  }
+
+  function updateTowerList(list, dt){
+    for (const t of list){
+      t.cooldown -= dt;
+      if (t.cooldown <= 0){
+        const nonCore = [0,1,2].filter(i => !AMMO_BY_ID[t.ammoSlots[i]].core && !AMMO_BY_ID[t.ammoSlots[i]].passive);
+        let ammo;
+        if (!nonCore.length){
+          if (!t.ammoSlots.every(id => AMMO_BY_ID[id].core)){ t.cooldown = 0.3; continue; }
+          ammo = AMMO_BY_ID.ultra;
+        } else {
+          if (!nonCore.includes(t.slotIndex)){
+            const nx = nonCore.find(i => i >= t.slotIndex);
+            t.slotIndex = (nx === undefined) ? nonCore[0] : nx;
+          }
+          ammo = AMMO_BY_ID[t.ammoSlots[t.slotIndex]];
+        }
+        const fired = fireTower(t, ammo);
+        if (fired){
+          t.cooldown = ammo.fireRate * rateMultiplier() / (hasCore(t,'spd') ? 2 : 1);
+          if (nonCore.length){
+            const nx = nonCore.find(i => i > t.slotIndex);
+            t.slotIndex = (nx === undefined) ? nonCore[0] : nx;
+          }
+        }
+        else { t.cooldown = 0.12; }
+      }
+    }
+  }
+  function updateTowers(dt){
+    updateTowerList(towers, dt);
+    updateTowerList(ampTowers, dt);
+  }
+
+  function updateProjectiles(dt){
+    for (const p of projectiles){
+      const ammo = AMMO_BY_ID[p.ammoId];
+      let target = enemies.find(e => e.id === p.targetId && !e.dead);
+      if (!target && ammo.retarget){
+        let best=null, bd=Infinity;
+        for (const e of enemies){
+          if (e.dead) continue;
+          const d = Math.hypot(e.x-p.x, e.y-p.y);
+          if (d < bd){ bd=d; best=e; }
+        }
+        if (best){ p.targetId = best.id; target = best; }
+      }
+      if (!target){ p.hit = true; continue; }
+      const dx = target.x-p.x, dy = target.y-p.y;
+      const dist = Math.hypot(dx,dy);
+      const move = p.speed * dt;
+      if (move >= dist){
+        resolveHit(ammo, target, p.damage, p.ampMult);
+        p.hit = true;
+      } else {
+        p.x += dx/dist*move;
+        p.y += dy/dist*move;
+      }
+    }
+    projectiles = projectiles.filter(p => !p.hit);
+    enemies = enemies.filter(e => !e.dead);
+  }
+
+  function update(dtRaw){
+    if (gameOver || paused) return;
+    const dt = dtRaw * speedMul;
+    if (waveInProgress){
+      spawnTimer -= dt;
+      if (spawnTimer <= 0 && spawnQueue.length){
+        spawnEnemyOfType(spawnQueue.shift());
+        spawnTimer = spawnInterval;
+      }
+    }
+    for (const st of towers){
+      if (st.moveCooldown > 0){ st.moveCooldown -= dt; if (st.moveCooldown < 0) st.moveCooldown = 0; }
+    }
+    for (const pt of pairTowers){
+      if (pt.cooldown > 0){ pt.cooldown -= dt; if (pt.cooldown < 0) pt.cooldown = 0; }
+    }
+    updateEnemies(dt);
+    if (inflation){
+      for (const e of enemies){
+        if (e.type === 'boss' && !e.dead){
+          e.sealTimer = (e.sealTimer === undefined ? 0 : e.sealTimer) - dt;
+          if (e.sealTimer <= 0){
+            e.sealTimer = 2.5;
+            if (sealRandomCell() && !e.announced){ e.announced = true; showToast('👹 ボスがマスを封鎖している！'); }
+          }
+        }
+      }
+    }
+    updateTowers(dt);
+    updateProjectiles(dt);
+    for (const f of fx) f.life -= dt;
+    fx = fx.filter(f => f.life > 0);
+    if (waveInProgress && spawnQueue.length === 0 && enemies.length === 0){
+      waveInProgress = false;
+      const bonus = Math.round((20 + wave*8) * (inflation ? Math.pow(1.25, wave-1) : 1));
+      money += bonus;
+      const diaGain = 1 + diamondBonus();
+      diamonds += diaGain;
+      showToast('ウェーブ ' + wave + ' クリア！ +' + bonus + 'G ／ 💎+' + diaGain);
+      if (wave % 5 === 0) trySpawnPairTower();
+    }
+    if (selectedKind === 'pair') tickPairPanel();
+    if (selectedKind === 'tower') tickSwarmPanel();
+    updateHUD();
+  }
+
+  // ---------- render ----------
+  function drawBackground(){
+    for (let r=0;r<ROWS;r++){
+      for (let c=0;c<COLS;c++){
+        ctx.fillStyle = ((r+c)%2===0) ? COLORS.grass1 : COLORS.grass2;
+        ctx.fillRect(c*CELL, r*CELL, CELL, CELL);
+      }
+    }
+  }
+  function drawGrid(){
+    ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let c=0;c<=COLS;c++){ ctx.moveTo(c*CELL+0.5, 0); ctx.lineTo(c*CELL+0.5, H); }
+    for (let r=0;r<=ROWS;r++){ ctx.moveTo(0, r*CELL+0.5); ctx.lineTo(W, r*CELL+0.5); }
+    ctx.stroke();
+  }
+  function drawPath(){
+    ctx.strokeStyle = COLORS.pathEdge; ctx.lineWidth = 40; ctx.lineJoin='round'; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(PATH[0].x, PATH[0].y);
+    for (let i=1;i<PATH.length;i++) ctx.lineTo(PATH[i].x, PATH[i].y);
+    ctx.stroke();
+    ctx.strokeStyle = COLORS.pathFill; ctx.lineWidth = 32;
+    ctx.beginPath(); ctx.moveTo(PATH[0].x, PATH[0].y);
+    for (let i=1;i<PATH.length;i++) ctx.lineTo(PATH[i].x, PATH[i].y);
+    ctx.stroke();
+  }
+  function drawTowers(){
+    for (const t of towers){
+      if (selectedKind==='tower' && t === selectedTower){
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, towerRange(t), 0, Math.PI*2);
+        ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fill();
+      }
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, 18, 0, Math.PI*2);
+      ctx.fillStyle = t.isSwarm ? '#5a3d7a' : '#7d7d6e';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 2; ctx.stroke();
+      if (pairBuffMultiplier(t) > 1){
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, 21, 0, Math.PI*2);
+        ctx.strokeStyle = '#2fb6a8'; ctx.lineWidth = 2.5; ctx.stroke();
+      }
+      if (t.isSwarm){
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, 24, 0, Math.PI*2);
+        ctx.strokeStyle = '#b06fe0'; ctx.lineWidth = 2.5; ctx.stroke();
+        if (t.moveCooldown > 0){
+          ctx.fillStyle = '#fff'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+          ctx.fillText(Math.ceil(t.moveCooldown)+'s', t.x, t.y+38);
+        }
+        if (movingSwarm && t === selectedTower){
+          ctx.beginPath(); ctx.arc(t.x, t.y, 29, 0, Math.PI*2);
+          ctx.setLineDash([4,4]); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]);
+        }
+      }
+
+      drawUltraRing(t);
+      for (let i=0;i<3;i++){
+        const ang = (i*120-90) * Math.PI/180;
+        const px = t.x + Math.cos(ang)*24, py = t.y + Math.sin(ang)*24;
+        drawPip(px, py, AMMO_BY_ID[t.ammoSlots[i]], i === t.slotIndex);
+      }
+      ctx.fillStyle = '#fff';
+      ctx.font = t.isSwarm ? '14px sans-serif' : 'bold 11px sans-serif';
+      ctx.textAlign = 'center';
+      if (t.isSwarm){
+        ctx.textBaseline = 'middle';
+        ctx.fillText('⚔️', t.x, t.y+1);
+        ctx.textBaseline = 'alphabetic';
+      } else {
+        ctx.fillText(String(t.id), t.x, t.y+4);
+      }
+    }
+  }
+  function drawBuffTower(){
+    const bt = buffTower;
+    if (selectedKind === 'buff'){
+      ctx.beginPath();
+      ctx.arc(bt.x, bt.y, 30, 0, Math.PI*2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 2; ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.arc(bt.x, bt.y, 20, 0, Math.PI*2);
+    ctx.fillStyle = '#caa14a';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.font = '20px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('👑', bt.x, bt.y+1);
+    ctx.textBaseline = 'alphabetic';
+
+    bt.buffs.forEach((id, i) => {
+      const b = BUFF_BY_ID[id];
+      const ang = (i*180-90) * Math.PI/180;
+      const px = bt.x + Math.cos(ang)*27, py = bt.y + Math.sin(ang)*27 - 10;
+      ctx.beginPath();
+      ctx.arc(px, py, 6, 0, Math.PI*2);
+      ctx.fillStyle = b.color;
+      ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.2; ctx.stroke();
+    });
+  }
+  function drawEnemies(){
+    for (const e of enemies){
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, e.radius, 0, Math.PI*2);
+      ctx.fillStyle = e.color; ctx.fill();
+      if (e.slowTimer > 0){ ctx.strokeStyle = '#4da6ff'; ctx.lineWidth = 3; }
+      else { ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 1.5; }
+      ctx.stroke();
+      const barW = e.radius*2, ratio = Math.max(0, e.hp/e.maxHp);
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(e.x-barW/2, e.y-e.radius-10, barW, 5);
+      ctx.fillStyle = ratio > 0.5 ? '#5fbf5f' : (ratio > 0.25 ? '#e0c23c' : '#d9483a');
+      ctx.fillRect(e.x-barW/2, e.y-e.radius-10, barW*ratio, 5);
+    }
+  }
+  function drawProjectiles(){
+    for (const p of projectiles){
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 4.5, 0, Math.PI*2);
+      ctx.fillStyle = AMMO_BY_ID[p.ammoId].color;
+      ctx.fill();
+    }
+  }
+  function drawPairTowers(){
+    for (const pt of pairTowers){
+      const isSelected = selectedKind === 'pair' && pt.id === selectedPairId;
+      if (isSelected){
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, PAIR_ADJACENT_DIST, 0, Math.PI*2);
+        ctx.strokeStyle = 'rgba(47,182,168,0.6)'; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.fillStyle = 'rgba(47,182,168,0.08)'; ctx.fill();
+      }
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, 17, 0, Math.PI*2);
+      ctx.fillStyle = '#2fb6a8';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.font = '16px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🤝', pt.x, pt.y+1);
+      ctx.textBaseline = 'alphabetic';
+      if (pt.cooldown > 0){
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillText(Math.ceil(pt.cooldown)+'s', pt.x, pt.y+27);
+      }
+      if (movingPairId === pt.id){
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, 24, 0, Math.PI*2);
+        ctx.setLineDash([4,4]);
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+  }
+  function drawAmpTowers(){
+    for (const a of ampTowers){
+      const isSelected = selectedKind === 'amp' && a.id === selectedAmpId;
+      if (isSelected){
+        ctx.beginPath();
+        ctx.arc(a.x, a.y, towerRange(a), 0, Math.PI*2);
+        ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fill();
+      }
+      ctx.beginPath();
+      ctx.arc(a.x, a.y, 18, 0, Math.PI*2);
+      ctx.fillStyle = '#e0973c';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(a.x, a.y, 24, 0, Math.PI*2);
+      ctx.strokeStyle = '#ffce8a'; ctx.lineWidth = 2.5; ctx.stroke();
+
+      drawUltraRing(a);
+      for (let i=0;i<3;i++){
+        const ang = (i*120-90) * Math.PI/180;
+        const px = a.x + Math.cos(ang)*24, py = a.y + Math.sin(ang)*24;
+        drawPip(px, py, AMMO_BY_ID[a.ammoSlots[i]], i === a.slotIndex);
+      }
+      ctx.font = '13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🔧', a.x, a.y+1);
+      ctx.textBaseline = 'alphabetic';
+    }
+  }
+  function drawPlacingAmpGhost(){
+    if ((!placingAmp && !placingTower) || mouseX < 0) return;
+    const snap = snapToGrid(mouseX, mouseY);
+    const ok = isValidSpot(snap.x, snap.y, null);
+    ctx.beginPath();
+    ctx.arc(snap.x, snap.y, 17, 0, Math.PI*2);
+    ctx.fillStyle = ok ? 'rgba(224,151,60,0.55)' : 'rgba(220,70,60,0.55)';
+    ctx.fill();
+    ctx.strokeStyle = ok ? '#e0973c' : '#d9483a'; ctx.lineWidth = 2; ctx.stroke();
+  }
+  function drawFx(){
+    for (const f of fx){
+      const alpha = Math.max(0, Math.min(1, f.life/f.maxLife));
+      ctx.globalAlpha = alpha;
+      if (f.type === 'splash'){
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, f.radius, 0, Math.PI*2);
+        ctx.strokeStyle = f.color; ctx.lineWidth = 3;
+        ctx.stroke();
+      } else if (f.type === 'chain' || f.type === 'pierce'){
+        ctx.beginPath();
+        ctx.moveTo(f.points[0].x, f.points[0].y);
+        for (let i=1;i<f.points.length;i++) ctx.lineTo(f.points[i].x, f.points[i].y);
+        ctx.strokeStyle = f.color;
+        ctx.lineWidth = f.type === 'chain' ? 3 : 2;
+        if (f.type === 'pierce') ctx.setLineDash([6,4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      } else if (f.type === 'execute'){
+        ctx.font = 'bold 13px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#d9364f';
+        ctx.fillText('CRUSH!', f.x, f.y - 20 - (1-alpha)*10);
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+  function drawBlocked(){
+    for (const key of blockedCells){
+      const [c, r] = key.split(',').map(Number);
+      const x = c*CELL, y = r*CELL;
+      ctx.fillStyle = 'rgba(25,10,35,0.78)';
+      ctx.fillRect(x, y, CELL, CELL);
+      ctx.strokeStyle = '#b06fe0'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x+8, y+8); ctx.lineTo(x+CELL-8, y+CELL-8);
+      ctx.moveTo(x+CELL-8, y+8); ctx.lineTo(x+8, y+CELL-8);
+      ctx.stroke();
+    }
+  }
+  function render(){
+    ctx.clearRect(0,0,W,H);
+    drawBackground();
+    drawGrid();
+    drawPath();
+    drawBlocked();
+    drawTowers();
+    drawBuffTower();
+    drawPairTowers();
+    drawAmpTowers();
+    drawPlacingAmpGhost();
+    drawEnemies();
+    drawProjectiles();
+    drawFx();
+  }
+
+  // ---------- loop ----------
+  let lastTime = performance.now();
+  function loop(now){
+    const dt = Math.min((now-lastTime)/1000, 0.05);
+    lastTime = now;
+    update(dt);
+    render();
+    requestAnimationFrame(loop);
+  }
+  updateHUD();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
